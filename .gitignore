@@ -1,0 +1,25 @@
+# Локальное окружение и служебные файлы Python.
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Настройки редакторов и операционной системы.
+.idea/
+.vscode/
+Thumbs.db
+.DS_Store
+
+# Временные материалы, локальные секреты и будущие хранилища.
+tmp/
+.env
+.env.*
+!.env.example
+data/
+*.vault
+*.vault.json
+*.key
+
+# ТЗ и учебные документы в docs намеренно остаются в репозитории.

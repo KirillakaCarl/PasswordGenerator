@@ -1,0 +1,144 @@
+"""Окно генерации паролей. Алгоритм вынесен в generator.py для независимых тестов.
+
+Оценка сложности и хранилище будут добавлены на следующих этапах.
+"""
+
+import tkinter as tk
+from tkinter import ttk
+
+from password_generator import __version__
+from password_generator.generator import GenerationOptions, generate_password
+
+
+class PasswordGeneratorApp(tk.Tk):
+    """Главное окно с настройками и текущим паролем в памяти сеанса."""
+
+    def __init__(self) -> None:
+        """Создать окно и переменные; при отсутствии графики возможен TclError."""
+        super().__init__()
+        self.title(f"PasswordGenerator {__version__} — учебный проект")
+        self.geometry("760x640")
+        self.minsize(640, 620)
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+        # StringVar сохраняет ошибочный текст длины для понятной проверки,
+        # тогда как IntVar может вызвать ошибку уже при чтении этого текста.
+        self.length = tk.StringVar(self, value="16")
+        self.lowercase = tk.BooleanVar(self, value=True)
+        self.uppercase = tk.BooleanVar(self, value=True)
+        self.digits = tk.BooleanVar(self, value=True)
+        self.special = tk.BooleanVar(self, value=True)
+        self.password = tk.StringVar(self)
+        self.show_password = tk.BooleanVar(self, value=False)
+        self.status = tk.StringVar(self, value="Выберите настройки и нажмите «Сгенерировать».")
+        self._build_widgets()
+
+    def _build_widgets(self) -> None:
+        """Разместить настройки, результат и кнопки; ничего не возвращать."""
+        content = ttk.Frame(self, padding=24)
+        content.grid(row=0, column=0, sticky="nsew")
+        content.columnconfigure(0, weight=1)
+        ttk.Label(content, text="PasswordGenerator", font=("Segoe UI", 20, "bold")).grid(
+            row=0, column=0, sticky="w", pady=(0, 8)
+        )
+        ttk.Label(content, text="Создайте пароль по выбранным правилам.").grid(
+            row=1, column=0, sticky="w", pady=(0, 16)
+        )
+        settings = ttk.LabelFrame(content, text="Настройки генерации", padding=12)
+        settings.grid(row=2, column=0, sticky="ew")
+        settings.columnconfigure(1, weight=1)
+        ttk.Label(settings, text="Длина (4–128):").grid(row=0, column=0, sticky="w")
+        self.length_input = ttk.Spinbox(
+            settings, from_=4, to=128, textvariable=self.length, width=8
+        )
+        self.length_input.grid(row=0, column=1, sticky="w", padx=12, pady=(0, 8))
+        for row, (label, variable) in enumerate((
+            ("Строчные буквы (a–z)", self.lowercase),
+            ("Прописные буквы (A–Z)", self.uppercase),
+            ("Цифры (0–9)", self.digits),
+            ("Специальные символы (!, @, # и другие)", self.special),
+        ), start=1):
+            ttk.Checkbutton(settings, text=label, variable=variable).grid(
+                row=row, column=0, columnspan=2, sticky="w", pady=2
+            )
+        self.generate_button = ttk.Button(
+            content, text="Сгенерировать", command=self._generate
+        )
+        self.generate_button.grid(row=3, column=0, sticky="w", pady=12)
+        result = ttk.LabelFrame(content, text="Полученный пароль", padding=12)
+        result.grid(row=4, column=0, sticky="ew")
+        result.columnconfigure(0, weight=1)
+        # readonly исключает случайную правку результата. Длинную строку
+        # можно прокручивать в поле; значение обновляется через StringVar.
+        self.password_input = ttk.Entry(
+            result, textvariable=self.password, state="readonly", show="*"
+        )
+        self.password_input.grid(row=0, column=0, columnspan=2, sticky="ew")
+        ttk.Checkbutton(
+            result, text="Показать пароль", variable=self.show_password,
+            command=self._toggle_visibility,
+        ).grid(row=1, column=0, sticky="w", pady=(8, 0))
+        self.copy_button = ttk.Button(
+            result, text="Копировать", command=self._copy_password, state="disabled"
+        )
+        self.copy_button.grid(row=1, column=1, sticky="e", pady=(8, 0))
+        ttk.Label(
+            content, text="Следующие этапы: оценка сложности и зашифрованное хранилище.",
+            wraplength=560,
+        ).grid(row=5, column=0, sticky="nw", pady=12)
+        content.rowconfigure(5, weight=1)
+        ttk.Button(content, text="Закрыть", command=self.destroy).grid(
+            row=6, column=0, sticky="e"
+        )
+        ttk.Label(
+            self, textvariable=self.status, padding=(16, 8), relief="sunken",
+            anchor="w", wraplength=600,
+        ).grid(row=1, column=0, sticky="ew")
+
+    def _generate(self) -> None:
+        """Прочитать форму и показать пароль или ошибку; ничего не возвращать.
+
+        Старый результат очищается, чтобы при ошибке он не выглядел созданным
+        по новым настройкам. Новый пароль всегда изначально скрыт.
+        """
+        self.password.set("")
+        self.copy_button.state(["disabled"])
+        self.show_password.set(False)
+        self._toggle_visibility()
+        try:
+            raw_length = self.length.get().strip()
+            if not raw_length.isascii() or not raw_length.isdecimal() or len(raw_length) > 3:
+                raise ValueError("Введите целую длину от 4 до 128.")
+            options = GenerationOptions(
+                length=int(raw_length), lowercase=self.lowercase.get(),
+                uppercase=self.uppercase.get(), digits=self.digits.get(),
+                special=self.special.get(),
+            )
+            password = generate_password(options)
+        except ValueError as error:
+            self.status.set(str(error))
+            return
+        self.password.set(password)
+        self.copy_button.state(["!disabled"])
+        self.status.set("Пароль создан. Он не сохранён в файл.")
+
+    def _toggle_visibility(self) -> None:
+        """Показать или скрыть результат без изменения самого пароля."""
+        self.password_input.configure(show="" if self.show_password.get() else "*")
+
+    def _copy_password(self) -> None:
+        """Скопировать пароль по запросу, обработав возможную ошибку Tkinter.
+
+        Ничего не возвращает. В строку состояния секрет не включается.
+        Буфер обмена автоматически не очищается и доступен другим программам.
+        """
+        if not self.password.get():
+            self.status.set("Сначала сгенерируйте пароль.")
+            return
+        try:
+            self.clipboard_clear()
+            self.clipboard_append(self.password.get())
+        except tk.TclError:
+            self.status.set("Не удалось скопировать пароль в буфер обмена.")
+            return
+        self.status.set("Пароль скопирован. Буфер доступен другим приложениям.")

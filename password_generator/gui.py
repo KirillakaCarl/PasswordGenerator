@@ -1,6 +1,6 @@
 """Окно генерации паролей с независимым от интерфейса алгоритмом.
 
-Правила оценки находятся в assessment.py. Хранилище появится позднее.
+Правила оценки находятся в assessment.py, хранилище — в storage_ui.py.
 """
 
 import tkinter as tk
@@ -9,6 +9,7 @@ from tkinter import ttk
 from password_generator import __version__
 from password_generator.assessment import assess_password
 from password_generator.generator import GenerationOptions, generate_password
+from password_generator.storage_ui import StorageFrame
 
 
 class PasswordGeneratorApp(tk.Tk):
@@ -44,6 +45,7 @@ class PasswordGeneratorApp(tk.Tk):
         # Изменение строки сбрасывает прежнюю оценку, чтобы она не относилась
         # к уже изменённому паролю. Оценивание запускается отдельной кнопкой.
         self.manual_password.trace_add("write", self._clear_assessment)
+        self.protocol("WM_DELETE_WINDOW", self._close)
 
     def _build_widgets(self) -> None:
         """Разместить настройки, результат и кнопки; ничего не возвращать."""
@@ -59,6 +61,9 @@ class PasswordGeneratorApp(tk.Tk):
             row=1, column=0, sticky="w", pady=(0, 16)
         )
         self.notebook = ttk.Notebook(content)
+        # Notebook переключает вкладки внутри одного окна. grid размещает
+        # элементы по строкам и столбцам; sticky="nsew" растягивает область
+        # во все стороны, а weight=1 отдаёт ей свободное место при увеличении.
         self.notebook.grid(row=2, column=0, sticky="nsew")
         content.rowconfigure(2, weight=1)
         generation = ttk.Frame(self.notebook, padding=12)
@@ -67,6 +72,11 @@ class PasswordGeneratorApp(tk.Tk):
         self.notebook.add(generation, text="Генерация")
         self.notebook.add(assessment, text="Оценка сложности")
         self._build_assessment_tab(assessment)
+        self.storage = StorageFrame(
+            self.notebook, self.password.get, self.manual_password.get,
+            self._clear_secrets, self.status,
+        )
+        self.notebook.add(self.storage, text="Хранилище")
 
         settings = ttk.LabelFrame(
             generation, text="Настройки генерации", padding=12
@@ -92,6 +102,8 @@ class PasswordGeneratorApp(tk.Tk):
                 row=row, column=0, columnspan=2, sticky="w", pady=2
             )
         self.generate_button = ttk.Button(
+            # Передаём сам метод в command, без скобок вызова: Tkinter вызовет
+            # его только после нажатия кнопки, а не при построении окна.
             generation, text="Сгенерировать", command=self._generate
         )
         self.generate_button.grid(row=1, column=0, sticky="w", pady=12)
@@ -118,7 +130,7 @@ class PasswordGeneratorApp(tk.Tk):
         ttk.Label(
             generation, textvariable=self.generated_assessment, wraplength=500,
         ).grid(row=3, column=0, sticky="nw", pady=8)
-        ttk.Button(content, text="Закрыть", command=self.destroy).grid(
+        ttk.Button(content, text="Закрыть", command=self._close).grid(
             row=3, column=0, sticky="e", pady=(8, 0)
         )
         ttk.Label(
@@ -261,3 +273,32 @@ class PasswordGeneratorApp(tk.Tk):
         self.status.set(
             "Пароль скопирован. Буфер доступен другим приложениям."
         )
+
+    def _clear_secrets(self) -> None:
+        """Очистить пароли и оценки после закрытия или смены хранилища.
+
+        Системный буфер обмена не изменяется: он может содержать чужие данные.
+        Строки Python могут сохраняться в памяти до освобождения сборщиком.
+        """
+        self.password.set("")
+        self.manual_password.set("")
+        self.generated_assessment.set("")
+        self.assessment_title.set("Введите пароль для оценки.")
+        self._set_assessment_details("")
+        self.show_password.set(False)
+        self.show_manual_password.set(False)
+        self._toggle_visibility()
+        self._toggle_manual_visibility()
+        self.copy_button.state(["disabled"])
+
+    def _close(self) -> None:
+        """Закрыть окно с очисткой сеанса, если файловая операция закончилась.
+
+        Во время записи только показываем сообщение: пользователь сможет
+        повторить закрытие после её окончания. Автозакрытия по таймеру нет.
+        """
+        if self.storage.busy:
+            self.status.set("Дождитесь окончания операции перед закрытием.")
+            return
+        self.storage.lock()
+        self.destroy()

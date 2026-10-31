@@ -61,6 +61,9 @@ class PasswordGeneratorApp(tk.Tk):
             row=1, column=0, sticky="w", pady=(0, 16)
         )
         self.notebook = ttk.Notebook(content)
+        # Notebook переключает вкладки внутри одного окна. grid размещает
+        # элементы по строкам и столбцам; sticky="nsew" растягивает область
+        # во все стороны, а weight=1 отдаёт ей свободное место при увеличении.
         self.notebook.grid(row=2, column=0, sticky="nsew")
         content.rowconfigure(2, weight=1)
         generation = ttk.Frame(self.notebook, padding=12)
@@ -99,6 +102,8 @@ class PasswordGeneratorApp(tk.Tk):
                 row=row, column=0, columnspan=2, sticky="w", pady=2
             )
         self.generate_button = ttk.Button(
+            # Передаём сам метод в command, без скобок вызова: Tkinter вызовет
+            # его только после нажатия кнопки, а не при построении окна.
             generation, text="Сгенерировать", command=self._generate
         )
         self.generate_button.grid(row=1, column=0, sticky="w", pady=12)
@@ -287,7 +292,11 @@ class PasswordGeneratorApp(tk.Tk):
         self.copy_button.state(["disabled"])
 
     def _close(self) -> None:
-        """Дождаться записи, очистить сеанс и закрыть окно без потери операции."""
+        """Закрыть окно с очисткой сеанса, если файловая операция закончилась.
+
+        Во время записи только показываем сообщение: пользователь сможет
+        повторить закрытие после её окончания. Автозакрытия по таймеру нет.
+        """
         if self.storage.busy:
             self.status.set("Дождитесь окончания операции перед закрытием.")
             return

@@ -50,6 +50,10 @@ def derive_cipher(master_password: str, salt: bytes) -> Fernet:
     validate_master_password(master_password)
     if not isinstance(salt, bytes) or len(salt) != SALT_LENGTH:
         raise EncryptionError("Некорректная соль хранилища.")
+    # Соль не является секретом: она делает ключи разных хранилищ различными
+    # даже при одинаковом мастер-пароле. Argon2id требует памяти и вычислений,
+    # чтобы затруднить массовую проверку вариантов мастер-пароля.
+    # Ключ вычисляется заново при открытии: отдельный файл ключа не нужен.
     kdf = Argon2id(
         salt=salt,
         length=KDF_PARAMETERS["length"],

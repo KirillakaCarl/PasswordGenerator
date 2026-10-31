@@ -38,6 +38,8 @@ class StorageFrame(ttk.Frame):
         self.session = None
         self.busy = False
         self._results = Queue()
+        # Очередь передаёт результаты между потоками. Основной поток читает
+        # её без ожидания, чтобы окно продолжало обрабатывать действия.
         self._on_success = None
         self._controls = []
         self.title_input = tk.StringVar(self)
@@ -337,7 +339,13 @@ class StorageFrame(ttk.Frame):
         self._refresh()
 
     def _start(self, operation: Callable, on_success: Callable) -> None:
-        """Запустить одну операцию без передачи Tkinter в рабочий поток."""
+        """Запустить одну операцию без передачи Tkinter в рабочий поток.
+
+        operation — функция без аргументов для вычислений и работы с файлом.
+        on_success получит её результат в основном потоке, где разрешено
+        обновлять виджеты. При ошибке обработчик успеха не вызывается.
+        Метод ничего не возвращает: завершение отслеживает _poll.
+        """
         if self.busy:
             return
         self.busy = True
@@ -370,6 +378,8 @@ class StorageFrame(ttk.Frame):
             else:
                 self._results.put((True, result))
 
+        # В очередь кладётся пара (успех, результат или сообщение ошибки).
+        # Рабочий поток не вызывает _opened/_saved и не изменяет виджеты.
         Thread(target=work, daemon=True).start()
         self.after(50, self._poll)
 
@@ -378,6 +388,8 @@ class StorageFrame(ttk.Frame):
         try:
             success, result = self._results.get_nowait()
         except Empty:
+            # after планирует следующий опрос и возвращает управление окну.
+            # Блокирующее ожидание Queue.get здесь заморозило бы интерфейс.
             self.after(50, self._poll)
             return
         self.busy = False

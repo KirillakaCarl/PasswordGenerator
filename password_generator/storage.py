@@ -227,6 +227,9 @@ class VaultSession:
         При неверном ключе существующий файл никогда не изменяется.
         """
         path = Path(path)
+        # Сначала отвергаем неподдерживаемый формат и параметры, затем
+        # вычисляем ключ. Расшифрованный JSON тоже проходит проверку схемы:
+        # подлинный токен ещё не гарантирует подходящую структуру записей.
         header, salt = _read_header(path)
         cipher = derive_cipher(master_password, salt)
         entries = _read_entries(decrypt_payload(cipher, header["token"]))
@@ -258,6 +261,9 @@ class VaultSession:
                 for entry in entries
             ],
         }
+        # Для просмотра нужно восстановить исходный пароль, поэтому применяем
+        # обратимое шифрование. Односторонний хеш не заменяет его: из хеша
+        # восстановить сохранённую пользователем строку нельзя.
         token = self._cipher.encrypt(
             json.dumps(payload, ensure_ascii=False).encode("utf-8")
         )
@@ -284,6 +290,8 @@ class VaultSession:
             datetime.now(timezone.utc).isoformat(),
         )
         updated = [*self._entries, entry]
+        # Не меняем исходный список до успешной записи. При ошибке файла
+        # интерфейс не увидит запись, которая на самом деле не сохранилась.
         self._write(updated)
         self._entries = updated
         return entry
@@ -291,6 +299,8 @@ class VaultSession:
     def delete(self, identifier: str) -> None:
         """Удалить запись по ID; неизвестный ID вызывает VaultError."""
         self._require_open()
+        # Сравниваем UUID, а не название: две записи могут называться одинаково,
+        # и удалиться должна только выбранная пользователем запись.
         updated = [e for e in self._entries if e.identifier != identifier]
         if len(updated) == len(self._entries):
             raise VaultError("Запись не найдена.")

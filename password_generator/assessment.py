@@ -61,6 +61,8 @@ def assess_baseline(password: str) -> AssessmentResult:
     if not password:
         return AssessmentResult(0, "Не задан", ("Введите пароль для оценки.",))
 
+    # any возвращает True или False. При сложении они дают 1 или 0,
+    # поэтому сумма равна числу представленных в пароле групп символов.
     groups = sum((
         any(char.islower() for char in password),
         any(char.isupper() for char in password),
@@ -70,6 +72,8 @@ def assess_baseline(password: str) -> AssessmentResult:
             for char in password
         ),
     ))
+    # За символ даём 3 балла, но вклад длины ограничен 60. Ещё до 40 баллов
+    # дают группы. Это выбранная учебная шкала, не статистика подбора пароля.
     score = min(60, 3 * len(password)) + 10 * groups
     reasons = [f"Длина: {len(password)}. Групп символов: {groups} из 4."]
     if len(password) < 8:
@@ -87,6 +91,9 @@ def _has_repeated_block(text: str) -> bool:
     text — вспомогательная строка без учёта регистра. Проверяем только длины,
     делящие её длину без остатка, поэтому неполный повтор не распознаётся.
     """
+    # text[:size] — предполагаемый блок. Умножение повторяет строку,
+    # а сравнение проверяет, восстановлен ли весь исходный текст.
+    # Например, блок ab дважды даёт abab, но не даёт abac.
     return any(
         len(text) % size == 0
         and text[:size] * (len(text) // size) == text
@@ -133,6 +140,8 @@ def assess_password(password: str) -> AssessmentResult:
         score = min(score, 39)
         reasons.append("Строка состоит из повторяющегося блока: максимум 39.")
     counts = Counter(folded)
+    # Counter считает частоты. Умножение максимальной частоты на 2 позволяет
+    # проверить долю не меньше половины без дробных вычислений.
     if len(counts) <= 2 or max(counts.values()) * 2 >= len(folded):
         score = min(score, 39)
         reasons.append(
@@ -149,6 +158,8 @@ def assess_password(password: str) -> AssessmentResult:
         reasons.append(
             "Есть последовательность символов: минус 20, максимум 74."
         )
+    # Если к базовым пояснениям ничего не добавлено, проверки не нашли
+    # знакомых шаблонов. Это не означает отсутствия любых слабостей.
     if len(reasons) == len(baseline.explanations):
         reasons.append("Известные этому алгоритму шаблоны не обнаружены.")
     return _make_result(score, reasons)

@@ -1,0 +1,6 @@
+# Готовые документы и изображения сохраняются побайтно.
+*.pdf binary
+*.docx binary
+*.pptx binary
+*.png binary
+*.zip binary

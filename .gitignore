@@ -5,6 +5,8 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
+build/
+dist/
 
 # Настройки редакторов и операционной системы.
 .idea/

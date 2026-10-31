@@ -68,7 +68,7 @@ class MasterDialogTests(unittest.TestCase):
             self.frame._start.assert_called_once()
 
     def test_confirmation_mismatch_warns_and_retries(self) -> None:
-        """При разных подтверждениях показывается предупреждение и новый ввод."""
+        """При несовпадении показать предупреждение и повторить ввод."""
         valid = "example-master-2026"
         with (
             patch(

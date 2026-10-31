@@ -235,7 +235,9 @@ class VaultSession:
     def _require_open(self) -> None:
         """Запретить обращение к заблокированному сеансу через VaultError."""
         if self._cipher is None:
-            raise VaultError("Хранилище заблокировано.")
+            raise VaultError(
+                "Хранилище закрыто. Откройте его с мастер-паролем."
+            )
 
     @property
     def entries(self) -> tuple[VaultEntry, ...]:

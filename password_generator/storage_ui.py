@@ -45,7 +45,7 @@ class StorageFrame(ttk.Frame):
         self.selected_password = tk.StringVar(self)
         self.revealed = tk.BooleanVar(self, value=False)
         self.vault_status = tk.StringVar(
-            self, value="Хранилище заблокировано."
+            self, value="Хранилище закрыто."
         )
         self._build()
         self._refresh()
@@ -67,7 +67,9 @@ class StorageFrame(ttk.Frame):
         toolbar.grid(row=0, column=0, sticky="w")
         self.create_button = self._button(toolbar, "Создать", self._create, 0)
         self.open_button = self._button(toolbar, "Открыть", self._open, 1)
-        self.lock_button = self._button(toolbar, "Блокировать", self.lock, 2)
+        self.lock_button = self._button(
+            toolbar, "Закрыть хранилище", self.lock, 2
+        )
         ttk.Label(
             self, textvariable=self.vault_status, wraplength=480
         ).grid(row=1, column=0, sticky="w", pady=6)
@@ -126,8 +128,10 @@ class StorageFrame(ttk.Frame):
         self.save_button.grid(row=2, column=1, sticky="e", padx=6)
         self._controls.extend((self.name_field, self.save_button))
         ttk.Label(
-            self, text="Мастер-пароль не восстанавливается. "
-            "При блокировке поля всех вкладок очищаются.", wraplength=480,
+            self,
+            text="При закрытии пароли скрываются, поля очищаются.\n"
+            "Для открытия нужен мастер-пароль. Восстановления нет.",
+            wraplength=480,
         ).grid(row=5, column=0, sticky="w", pady=(4, 0))
 
     def _refresh(self) -> None:
@@ -326,8 +330,10 @@ class StorageFrame(ttk.Frame):
         self.session = None
         self.title_input.set("")
         self._clear_secrets()
-        self.vault_status.set("Хранилище заблокировано.")
-        self._status.set("Хранилище заблокировано. Поля с паролями очищены.")
+        self.vault_status.set("Хранилище закрыто.")
+        self._status.set(
+            "Хранилище закрыто. Для открытия нужен мастер-пароль."
+        )
         self._refresh()
 
     def _start(self, operation: Callable, on_success: Callable) -> None:

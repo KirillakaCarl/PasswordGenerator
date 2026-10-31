@@ -13,6 +13,9 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from password_generator.encryption import validate_master_password
+from password_generator.entry_view import (
+    DEFAULT_SORT, SORT_ORDERS, display_created_at, select_entries,
+)
 from password_generator.storage import VaultSession
 
 
@@ -46,11 +49,18 @@ class StorageFrame(ttk.Frame):
         self.source = tk.StringVar(self, value="Сгенерированный пароль")
         self.selected_password = tk.StringVar(self)
         self.revealed = tk.BooleanVar(self, value=False)
+        self.search_query = tk.StringVar(self)
+        self.sort_choice = tk.StringVar(self, value=DEFAULT_SORT)
+        self.results_status = tk.StringVar(self)
         self.vault_status = tk.StringVar(
             self, value="Хранилище закрыто."
         )
         self._build()
         self._refresh()
+        # trace вызывает перерисовку при изменении переменной. Кнопка «Найти»
+        # не нужна. Сначала строим виджеты, затем подключаем trace.
+        self.search_query.trace_add("write", self._view_changed)
+        self.sort_choice.trace_add("write", self._view_changed)
 
     def _button(
         self, parent: ttk.Frame, text: str, command: Callable, column: int,
@@ -64,7 +74,7 @@ class StorageFrame(ttk.Frame):
     def _build(self) -> None:
         """Создать кнопки, список и форму; файловые операции не запускать."""
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(2, weight=1)
+        self.rowconfigure(4, weight=1)
         toolbar = ttk.Frame(self)
         toolbar.grid(row=0, column=0, sticky="w")
         self.create_button = self._button(toolbar, "Создать", self._create, 0)
@@ -76,16 +86,45 @@ class StorageFrame(ttk.Frame):
             self, textvariable=self.vault_status, wraplength=480
         ).grid(row=1, column=0, sticky="w", pady=6)
 
+        filters = ttk.Frame(self)
+        filters.grid(row=2, column=0, sticky="ew", pady=4)
+        filters.columnconfigure(1, weight=1)
+        ttk.Label(filters, text="Поиск по названию:").grid(
+            row=0, column=0, sticky="w", padx=(0, 6)
+        )
+        self.search_input = ttk.Entry(filters, textvariable=self.search_query)
+        self.search_input.grid(row=0, column=1, sticky="ew")
+        self.clear_search_button = ttk.Button(
+            filters, text="Сбросить", command=lambda: self.search_query.set("")
+        )
+        self.clear_search_button.grid(row=0, column=2, padx=(6, 0))
+        ttk.Label(filters, text="Сортировка:").grid(
+            row=1, column=0, sticky="w", pady=4
+        )
+        self.sort_input = ttk.Combobox(
+            filters, textvariable=self.sort_choice, values=tuple(SORT_ORDERS),
+            state="readonly", width=24,
+        )
+        self.sort_input.grid(
+            row=1, column=1, columnspan=2, sticky="ew", pady=4
+        )
+        self._controls.extend((self.search_input, self.clear_search_button))
+        ttk.Label(self, textvariable=self.results_status).grid(
+            row=3, column=0, sticky="w", pady=(0, 4)
+        )
         listing = ttk.Frame(self)
-        listing.grid(row=2, column=0, sticky="nsew")
+        listing.grid(row=4, column=0, sticky="nsew")
         listing.columnconfigure(0, weight=1)
         listing.rowconfigure(0, weight=1)
         self.records = ttk.Treeview(
-            listing, columns=("title",), show="headings", height=4,
+            listing, columns=("title", "created_at"), show="headings",
+            height=4,
             selectmode="browse",
         )
-        self.records.heading("title", text="Сохранённые записи")
-        self.records.column("title", width=250, minwidth=100)
+        self.records.heading("title", text="Название")
+        self.records.column("title", width=220, minwidth=100)
+        self.records.heading("created_at", text="Дата создания записи")
+        self.records.column("created_at", width=225, minwidth=210)
         self.records.grid(row=0, column=0, sticky="nsew")
         scrollbar = ttk.Scrollbar(
             listing, orient="vertical", command=self.records.yview
@@ -95,7 +134,7 @@ class StorageFrame(ttk.Frame):
         self.records.bind("<<TreeviewSelect>>", self._selection_changed)
 
         selected = ttk.Frame(self)
-        selected.grid(row=3, column=0, sticky="ew", pady=6)
+        selected.grid(row=5, column=0, sticky="ew", pady=6)
         selected.columnconfigure(0, weight=1)
         self.secret_field = ttk.Entry(
             selected, textvariable=self.selected_password,
@@ -113,7 +152,7 @@ class StorageFrame(ttk.Frame):
         )
 
         form = ttk.LabelFrame(self, text="Сохранить новую запись", padding=8)
-        form.grid(row=4, column=0, sticky="ew", pady=6)
+        form.grid(row=6, column=0, sticky="ew", pady=6)
         form.columnconfigure(1, weight=1)
         ttk.Label(form, text="Название:").grid(row=0, column=0, sticky="w")
         self.name_field = ttk.Entry(form, textvariable=self.title_input)
@@ -134,30 +173,23 @@ class StorageFrame(ttk.Frame):
             text="При закрытии пароли скрываются, поля очищаются.\n"
             "Для открытия нужен мастер-пароль. Восстановления нет.",
             wraplength=480,
-        ).grid(row=5, column=0, sticky="w", pady=(4, 0))
+        ).grid(row=7, column=0, sticky="w", pady=(4, 0))
 
     def _refresh(self) -> None:
         """Обновить список и доступность действий после операции."""
-        self.selected_password.set("")
-        self.revealed.set(False)
-        self.secret_field.configure(show="*")
-        children = self.records.get_children()
-        if children:
-            self.records.delete(*children)
-        if self.session is not None:
-            for entry in self.session.entries:
-                self.records.insert(
-                    "", "end", iid=entry.identifier, values=(entry.title,)
-                )
+        self._render_entries()
         for control in self._controls:
             control.state(["!disabled"])
         self.source_field.configure(state="readonly")
+        self.sort_input.configure(state="readonly")
         if self.session is None:
             for control in (
                 self.lock_button, self.save_button, self.name_field,
+                self.search_input, self.clear_search_button,
             ):
                 control.state(["disabled"])
             self.source_field.configure(state="disabled")
+            self.sort_input.configure(state="disabled")
         else:
             # Для смены файла сначала блокируем текущий сеанс. Это исключает
             # смешение записей разных хранилищ и сохраняет простой сценарий.
@@ -165,6 +197,47 @@ class StorageFrame(ttk.Frame):
             self.open_button.state(["disabled"])
         self.delete_button.state(["disabled"])
         self.show_button.state(["disabled"])
+
+    def _view_changed(self, *_args: str) -> None:
+        """Обновить выборку при вводе/сортировке, если нет фоновой записи."""
+        if not self.busy:
+            self._render_entries()
+
+    def _render_entries(self) -> None:
+        """Показать выбранную часть записей и сбросить ранее показанный секрет.
+
+        В таблице используется исходный UUID: смена порядка не может изменить
+        адресата просмотра или удаления. Фильтр ничего не удаляет из сеанса.
+        """
+        self.selected_password.set("")
+        self.revealed.set(False)
+        self.secret_field.configure(show="*")
+        self.show_button.state(["disabled"])
+        self.delete_button.state(["disabled"])
+        children = self.records.get_children()
+        if children:
+            self.records.delete(*children)
+        if self.session is None:
+            self.results_status.set("")
+            return
+        entries = self.session.entries
+        visible = select_entries(
+            entries, self.search_query.get(),
+            SORT_ORDERS[self.sort_choice.get()],
+        )
+        for entry in visible:
+            self.records.insert(
+                "", "end", iid=entry.identifier,
+                values=(entry.title, display_created_at(entry)),
+            )
+        if not entries:
+            self.results_status.set("Пока нет записей.")
+        elif not visible:
+            self.results_status.set("Совпадений не найдено.")
+        else:
+            self.results_status.set(
+                f"Показано {len(visible)} из {len(entries)}."
+            )
 
     def _selection_changed(self, _event=None) -> None:
         """Скрыть прошлый секрет при выборе записи; событие даёт Tkinter."""
@@ -330,6 +403,8 @@ class StorageFrame(ttk.Frame):
         if self.session is not None:
             self.session.lock()
         self.session = None
+        self.search_query.set("")
+        self.sort_choice.set(DEFAULT_SORT)
         self.title_input.set("")
         self._clear_secrets()
         self.vault_status.set("Хранилище закрыто.")
@@ -354,6 +429,7 @@ class StorageFrame(ttk.Frame):
         for control in self._controls:
             control.state(["disabled"])
         self.source_field.configure(state="disabled")
+        self.sort_input.configure(state="disabled")
         self._status.set("Выполняется операция хранилища…")
 
         def work() -> None:

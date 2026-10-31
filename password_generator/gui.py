@@ -19,8 +19,8 @@ class PasswordGeneratorApp(tk.Tk):
         """Создать окно и переменные; без графики возможен TclError."""
         super().__init__()
         self.title(f"PasswordGenerator {__version__} — учебный проект")
-        self.geometry("760x640")
-        self.minsize(640, 620)
+        self.geometry("760x720")
+        self.minsize(640, 700)
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
         # StringVar сохраняет ошибочный текст длины для понятной проверки,
@@ -49,7 +49,7 @@ class PasswordGeneratorApp(tk.Tk):
 
     def _build_widgets(self) -> None:
         """Разместить настройки, результат и кнопки; ничего не возвращать."""
-        content = ttk.Frame(self, padding=24)
+        content = ttk.Frame(self, padding=22)
         content.grid(row=0, column=0, sticky="nsew")
         content.columnconfigure(0, weight=1)
         ttk.Label(

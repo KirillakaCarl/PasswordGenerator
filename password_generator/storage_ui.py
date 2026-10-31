@@ -188,31 +188,61 @@ class StorageFrame(ttk.Frame):
         """Запросить скрытый мастер-пароль и при создании его повторение.
 
         При отмене возвращает None. Проверка не удаляет пробелы; ошибки
-        показываются без включения самого пароля.
+        показываются отдельным предупреждением без включения самого пароля.
+        После ошибки повторяем ввод, сохраняя уже выбранное имя файла.
         """
-        password = simpledialog.askstring(
-            "Мастер-пароль", "Введите мастер-пароль (12–1024 символа):",
-            show="*", parent=self,
-        )
-        if password is None:
-            return None
-        try:
-            validate_master_password(password)
-        except ValueError as error:
-            self._status.set(str(error))
-            return None
-        if confirm:
-            repeated = simpledialog.askstring(
-                "Подтверждение",
-                "Повторите мастер-пароль. Восстановления пароля нет.",
+        action = "создано" if confirm else "открыто"
+        cancelled = "Создание" if confirm else "Открытие"
+        while True:
+            password = simpledialog.askstring(
+                "Мастер-пароль", "Введите мастер-пароль (12–1024 символа):",
                 show="*", parent=self,
             )
-            if repeated is None:
+            if password is None:
+                self._status.set(f"{cancelled} хранилища отменено.")
                 return None
-            if password != repeated:
-                self._status.set("Мастер-пароли не совпадают.")
-                return None
-        return password
+            try:
+                validate_master_password(password)
+            except ValueError as error:
+                summary = (
+                    f"Хранилище не {action}: требования к мастер-паролю "
+                    "не соблюдены."
+                )
+                self._status.set(summary)
+                messagebox.showwarning(
+                    "Требования к мастер-паролю",
+                    f"{summary}\n\nПричина: {error}\n\n"
+                    "Требования:\n"
+                    "• Длина от 12 до 1024 символов включительно.\n"
+                    "• Разрешены буквы, цифры, пробелы "
+                    "и специальные символы.\n"
+                    "• Пробелы считаются частью пароля.\n\n"
+                    "Попробуйте ввести мастер-пароль ещё раз.",
+                    parent=self,
+                )
+                continue
+            if confirm:
+                repeated = simpledialog.askstring(
+                    "Подтверждение",
+                    "Повторите мастер-пароль. Восстановления пароля нет.",
+                    show="*", parent=self,
+                )
+                if repeated is None:
+                    self._status.set("Создание хранилища отменено.")
+                    return None
+                if password != repeated:
+                    summary = (
+                        "Хранилище не создано: мастер-пароли не совпадают."
+                    )
+                    self._status.set(summary)
+                    messagebox.showwarning(
+                        "Подтверждение мастер-пароля",
+                        f"{summary}\n\nВведите мастер-пароль и повторите его "
+                        "ещё раз. Учитываются регистр и пробелы.",
+                        parent=self,
+                    )
+                    continue
+            return password
 
     def _create(self) -> None:
         """Выбрать новое имя и запустить создание в рабочем потоке."""

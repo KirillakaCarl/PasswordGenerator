@@ -1,0 +1,9 @@
+# Готовые приложения и документы сохраняются побайтно.
+*.exe binary
+*.pdf binary
+*.docx binary
+*.pptx binary
+*.png binary
+*.zip binary
+# Лицензии поставщиков сохраняются в исходном виде, включая пробелы.
+app/THIRD_PARTY_LICENSES/* -text -whitespace

@@ -1,0 +1,29 @@
+{
+  "version": "1.0.0",
+  "platform": "Windows x64",
+  "built_at_utc": "2026-10-31T19:21:07.081817+00:00",
+  "python": "3.14.10",
+  "exe_sha256": "234d5b890c49c319594d48dd00c7a8f72995b330860e684835c6b0ce4c8b748a",
+  "packages": {
+    "cryptography": "50.0.2",
+    "cffi": "2.1.1",
+    "pycparser": "3.12",
+    "PyInstaller": "6.22.3",
+    "pyinstaller-hooks-contrib": "2026.9"
+  },
+  "source_sha256": {
+    "main.py": "d6342122b7a2d8e982ee6c8aa1f05e47843c0401af785a1a9ec2b70ec4a121cb",
+    "password_generator/__init__.py": "406f5774f05af30c6ff47937b470d2acd3200ee65fa478f0e541207f28238dd0",
+    "password_generator/assessment.py": "496ca5141778632275e696c55e2d0c3527d8d4a118b5c1531601747654b84206",
+    "password_generator/encryption.py": "5b85ca79f577ebc3e97a0355be05f045bccee6d4f73858c2ee4b4838653ed439",
+    "password_generator/entry_view.py": "e3631bf633b692385a8d62006528f6ceb9f0e4b3593269ad6f37cfe2da6b8707",
+    "password_generator/generator.py": "337278319b6fbdb5ec5d8b7fc52a6f4cba67249580fe52dad6a241e41803019d",
+    "password_generator/gui.py": "a4aa0f8fa04308e16259cc92b1c30ece57bb8eee718e32a9b9d782c264f16626",
+    "password_generator/release_check.py": "45f652d5f7bdba58e6fb58098c80a31b915603e90c86f3fde6a0db07e9d5f669",
+    "password_generator/storage.py": "3512e4213f524333a055a5da173ef53a7a4d9d97b307466974c11998fa05ea7e",
+    "password_generator/storage_ui.py": "2e9db9f4858223a4b33bff26350baaaefb24eae14fa3900602e5e0befd54bb35",
+    "requirements.txt": "16a0859522460f764e31e28ee3d343df6a8164b5574b984b121d2fcd743d0ba2",
+    "requirements-build.txt": "febe2ffcd6b61f243479e31cfd1e076da3be43aa5042fbca975a159c17b0ec1d",
+    "scripts/build_windows.py": "919dcf87fd8b579fcd1ff609f268a1ab5abd545615a0263fed20fcebba891bfa"
+  }
+}
